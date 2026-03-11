@@ -131,9 +131,8 @@ claude
 
 ## API Reference
 
-### Endpoints
-- Production: `https://api.wspaces.app/graphql`
-- Local: `http://localhost:8060/graphql`
+### Endpoint
+- `https://api.wspaces.app/graphql`
 
 ### Authentication
 Header: `x-api-key: <API_KEY>`

@@ -29,7 +29,7 @@ cat > "$COMMANDS_DIR/wspace-api.md" << 'WSPACE_API_EOF'
 # Auth
 
 - Resolve `API_KEY`: check env `WSPACE_API_KEY`, or ask user via AskUserQuestion.
-- Resolve `ENDPOINT`: try `https://api.wspaces.app/graphql`, fallback `http://localhost:8060/graphql`.
+- Resolve `ENDPOINT`: `https://api.wspaces.app/graphql`.
 - All curl requests include: `-H "Content-Type: application/json" -H "x-api-key: <API_KEY>"`.
 
 # Parse
@@ -324,7 +324,7 @@ One-command setup to integrate the current project with WSpace.
 ### 2. Detect Endpoint
 
 - Try `https://api.wspaces.app/graphql` first
-- Fallback to `http://localhost:8060/graphql`
+- Endpoint: `https://api.wspaces.app/graphql`
 - Test with a simple query to verify connectivity
 
 ### 3. Fetch Workspace Context
