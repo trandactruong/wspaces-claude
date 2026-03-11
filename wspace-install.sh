@@ -337,15 +337,23 @@ If error "requires API key authentication" (user-level key), query `workspaces` 
 
 ### 4. Detect Bot Identity
 
-From the `appContext` response, find the bot's own member:
-- Look for member with email ending in `@bot.wspaces.app`
-- Store the bot's `id` and `full_name`
-- This allows multiple Claude Code instances to run with different API keys, each auto-detecting its own bot identity
+Query `me` to resolve the bot's own identity:
+```
+{ me { id email full_name } }
+```
+- Verify email ends in `@bot.wspaces.app`
+- Store the bot's `id` and `full_name` for display in summary
+- The `me` query is preferred over email pattern matching — it directly returns the authenticated bot's identity
 
 ### 5. Generate `CLAUDE.md`
 
-Create/update `CLAUDE.md` in project root with all fetched data.
-**Do NOT hardcode bot ID** — instead include instructions to query `appContext` at runtime.
+**Skip if `CLAUDE.md` already exists** and contains the same workspace ID.
+- Read existing `CLAUDE.md`, check for `Workspace ID: \`<ID>\``
+- If match → skip writing, print "CLAUDE.md already configured for this workspace"
+- If no match or file doesn't exist → create/update with fetched data
+- If user passes `--force` in arguments → always overwrite
+
+**Do NOT hardcode bot ID** — instead include instructions to query `me` at runtime.
 
 ```markdown
 # WSpace API Defaults
@@ -358,9 +366,15 @@ When running `/wspace-api` commands, use these defaults unless overridden:
 
 ## Bot Identity (Dynamic)
 
-**Do NOT hardcode bot ID.** At startup or first API call, query `appContext` to resolve:
-{ appContext { workspace { id } members { id email full_name } } }
-The bot's own member is the one with email ending in `@bot.wspaces.app`. Cache the bot's `id` for the session.
+**Do NOT hardcode bot ID.** At startup or first API call, query `me` to resolve own identity:
+\`\`\`graphql
+{ me { id email full_name } }
+\`\`\`
+Then query `appContext` for workspace data:
+\`\`\`graphql
+{ appContext { workspace { id name url } members { id email full_name username } scopes } }
+\`\`\`
+Cache the bot's `id` for the session. The `me` query is preferred over email pattern matching when multiple bots exist.
 
 Multiple Claude Code instances can run in the same project folder, each with a different `WSPACE_API_KEY`. Each instance auto-detects its own bot identity.
 
@@ -391,11 +405,11 @@ mutation(\$input: CreateCommentInput!) { createComment(createInput: \$input) }
 
 ## Auto-implement Workflow
 
-**IMPORTANT: Only process issues assigned to THIS bot's own member ID.** Query `appContext` first to discover own identity. Never self-assign unassigned issues.
+**IMPORTANT: Only process issues assigned to THIS bot's own member ID.** Query `me` first to discover own identity. Never self-assign unassigned issues.
 
 ### Phase 0: Resolve bot identity
-1. Query `appContext` using current `WSPACE_API_KEY`
-2. Find own member by matching email pattern `*@bot.wspaces.app`
+1. Query `{ me { id email full_name } }` using current `WSPACE_API_KEY`
+2. Verify email ends in `@bot.wspaces.app`
 3. Cache `bot_id` for the session
 
 ### Phase 1: Pick up new issues
@@ -449,7 +463,7 @@ If yes, create a CronCreate with the selected interval using this prompt:
 ```
 Run two phases using env WSPACE_API_KEY:
 
-Phase 0 - Resolve identity: Query appContext to find bot's own member ID (email ending in @bot.wspaces.app).
+Phase 0 - Resolve identity: Query `{ me { id email full_name } }` to get bot's own member ID.
 
 Phase 1 - New issues: Query issues assigned to bot_id in Backlog/Todo.
 For each: move to In Progress, analyze task, comment plan on issue.
