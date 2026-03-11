@@ -1,114 +1,114 @@
 # WSpaces Claude Integration
 
-Tich hop [WSpace](https://wspaces.app) voi [Claude Code](https://claude.ai/claude-code) — tu dong quan ly issues, projects, documents thong qua GraphQL API.
+Integrate [WSpace](https://wspaces.app) with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — automate issue management, projects, and documents via GraphQL API.
 
-## Cai dat
+## Installation
 
-### Yeu cau
+### Prerequisites
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
-- WSpace API Key (lay tu WSpace Settings > Apps hoac Settings > API Keys)
+- WSpace API Key (from WSpace Settings > Apps)
 
-### Cai dat 1 lenh
+### One-command install
 
 ```bash
 git clone git@github.com:trandactruong/wspaces-claude.git
 bash wspaces-claude/wspace-install.sh
 ```
 
-Sau khi chay xong, ban se co 2 slash commands trong Claude Code:
-- `/wspace-setup` — Setup WSpace cho project hien tai
-- `/wspace-api` — Tuong tac voi WSpace API
+This installs two slash commands into Claude Code:
+- `/wspace-setup` — Set up WSpace integration for the current project
+- `/wspace-api` — Interact with the WSpace GraphQL API
 
-## Su dung
+## Usage
 
-### 1. Setup project
+### 1. Project setup
 
-Mo Claude Code trong project cua ban:
+Open Claude Code in your project:
 
 ```bash
 cd my-project
 claude
 ```
 
-Chay setup:
+Run setup:
 
 ```
 /wspace-setup
 ```
 
-Setup se:
-- Hoi API key (hoac dung key co san)
-- Ket noi va lay thong tin workspace (teams, workflows, labels, members)
-- Tao file `.env` (chua API key)
-- Tao file `CLAUDE.md` (config mac dinh cho project)
-- Cap nhat `.gitignore`
-- Hoi bat auto-loop (5m / 10m / 30m / thu cong)
+The setup wizard will:
+- Prompt for your API key (or use an existing one)
+- Connect and fetch workspace context (teams, workflows, labels, members)
+- Create `.env` file with the API key
+- Generate `CLAUDE.md` with project-specific defaults
+- Update `.gitignore` to exclude `.env`
+- Optionally enable auto-loop (5m / 10m / 30m)
 
-### 2. Cac lenh WSpace API
+### 2. WSpace API commands
 
 ```
-/wspace-api context                          # Xem workspace info + scopes
-/wspace-api workspaces                       # Liet ke workspaces
-/wspace-api issues list                      # Liet ke issues
-/wspace-api issues get --team IVT --code 3   # Xem chi tiet issue
-/wspace-api issues create --title "Bug fix"  # Tao issue moi
+/wspace-api context                          # View workspace info + scopes
+/wspace-api workspaces                       # List all workspaces
+/wspace-api issues list                      # List issues
+/wspace-api issues get --team IVT --code 3   # Get issue details
+/wspace-api issues create --title "Bug fix"  # Create a new issue
 /wspace-api issues update --id <id> --priority HIGH
-/wspace-api projects list                    # Liet ke projects
-/wspace-api documents list                   # Liet ke documents
+/wspace-api projects list                    # List projects
+/wspace-api documents list                   # List documents
 ```
 
-Khi da setup, khong can truyen `--workspace` hay `--team` — tu dong dung defaults tu `CLAUDE.md`.
+Once set up, you don't need to pass `--workspace` or `--team` — defaults are loaded from `CLAUDE.md`.
 
 ### 3. Auto-implement workflow
 
-Bat auto-loop de bot tu dong xu ly issues:
+Enable auto-loop so the bot automatically processes assigned issues:
 
 ```
 /loop 5m /wspace-api issues list
 ```
 
-Hoac chon khi chay `/wspace-setup`.
+Or select an interval during `/wspace-setup`.
 
 #### Flow
 
 ```
-User assign issue cho Bot
+User assigns issue to Bot
   -> Backlog/Todo
-  -> [Bot picks up] -> In Progress (comment ke hoach)
-  -> [User comment phan hoi]
-    -> dong y       -> Bot implement -> In Review (comment ket qua)
-    -> phan tich them -> Bot phan tich -> In Progress (comment ket qua)
-    -> gop y/sua    -> Bot cap nhat   -> In Progress (comment plan moi)
-    -> tu choi      -> Bot xac nhan   -> Backlog
-    -> hoi them     -> Bot tra loi    -> In Progress
-  -> [User review In Review & complete thu cong]
+  -> [Bot picks up] -> In Progress (comments implementation plan)
+  -> [User responds via comment]
+    -> approve       -> Bot implements  -> In Review (comments results)
+    -> analyze more  -> Bot researches  -> In Progress (comments findings)
+    -> feedback      -> Bot revises     -> In Progress (comments new plan)
+    -> reject        -> Bot confirms    -> Backlog
+    -> question      -> Bot answers     -> In Progress
+  -> [User reviews In Review & completes manually]
 ```
 
-#### Cach hoat dong
+#### How it works
 
-1. **User tao issue** tren WSpace va **assign cho bot** (Claude Leader)
-2. **Bot tu dong pick up** — chuyen sang In Progress, phan tich task, comment ke hoach trien khai
-3. **User review plan** — comment tren issue de phan hoi:
-   - "ok trienk khai di" -> bot implement code
-   - "phan tich them phan X" -> bot phan tich tiep
-   - "sua lai plan" -> bot cap nhat
-4. **Bot implement xong** -> comment ket qua + chuyen sang In Review
-5. **User review** va complete thu cong
+1. **User creates an issue** on WSpace and **assigns it to the bot** (Claude Leader)
+2. **Bot picks it up** — moves to In Progress, analyzes the task, comments the implementation plan
+3. **User reviews the plan** — responds via comment on the issue:
+   - "ok, go ahead" -> bot implements the code
+   - "analyze section X further" -> bot does more research
+   - "revise the plan" -> bot updates the approach
+4. **Bot finishes implementation** -> comments results + moves to In Review
+5. **User reviews** and completes manually
 
-> Bot chi xu ly issues duoc assign cho no. Khong tu nhan issues.
+> The bot only processes issues explicitly assigned to it. It never self-assigns issues.
 
-## Cau truc files
+## File structure
 
-Sau khi setup, project se co:
+After setup, your project will contain:
 
 ```
 my-project/
   .env              # WSPACE_API_KEY
-  .gitignore        # .env duoc ignore
+  .gitignore        # .env is excluded
   CLAUDE.md         # WSpace config defaults
 ```
 
-Claude Code commands (global):
+Global Claude Code commands:
 
 ```
 ~/.claude/commands/
@@ -116,15 +116,15 @@ Claude Code commands (global):
   wspace-setup.md   # /wspace-setup command
 ```
 
-## Chuyen sang may khac
+## Setting up on another machine
 
 ```bash
-# Tren may moi
+# On the new machine
 npm install -g @anthropic-ai/claude-code
 git clone git@github.com:trandactruong/wspaces-claude.git
 bash wspaces-claude/wspace-install.sh
 
-# Sau do trong project
+# Then in your project
 claude
 /wspace-setup
 ```
@@ -139,14 +139,14 @@ claude
 Header: `x-api-key: <API_KEY>`
 
 ### Scopes
-| Scope | Mo ta |
-|-------|-------|
-| ISSUES_READ / WRITE | Doc/ghi issues |
-| PROJECTS_READ / WRITE | Doc/ghi projects |
-| DOCUMENTS_READ / WRITE | Doc/ghi documents |
-| TEAMS_READ | Doc teams |
-| MEMBERS_READ | Doc members |
-| APPOINTMENTS_READ / WRITE | Doc/ghi appointments |
+| Scope | Description |
+|-------|-------------|
+| ISSUES_READ / WRITE | Read/write issues |
+| PROJECTS_READ / WRITE | Read/write projects |
+| DOCUMENTS_READ / WRITE | Read/write documents |
+| TEAMS_READ | Read teams |
+| MEMBERS_READ | Read members |
+| APPOINTMENTS_READ / WRITE | Read/write appointments |
 
-### Priority
+### Priority levels
 `NO_PRIORITY` | `URGENT` | `HIGH` | `MEDIUM` | `LOW`
