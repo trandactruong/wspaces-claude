@@ -316,14 +316,13 @@ One-command setup to integrate the current project with WSpace.
 
 ### 1. Resolve API Key
 
-- Check if `.env` file exists in current project root with `WSPACE_API_KEY`
-- If exists, source it and use the key
-- If not, check env var `WSPACE_API_KEY`
+- Check env var `WSPACE_API_KEY` first
+- If not set, check if `$ARGUMENTS` contains an API key (starts with `sk_live_`)
 - If neither, ask user via AskUserQuestion for their WSpace API key
+- **Do NOT create `.env` file** — API key is set per terminal session to support multiple bot instances
 
 ### 2. Detect Endpoint
 
-- Try `https://api.wspaces.app/graphql` first
 - Endpoint: `https://api.wspaces.app/graphql`
 - Test with a simple query to verify connectivity
 
@@ -334,20 +333,19 @@ Query the API with:
 { appContext { workspace { id name url logo timezone large_company created_at updated_at } teams { id name identifier icon color } workflows { id name color type } labels { id name color } project_statuses { id name color type } members { id email full_name username } scopes } }
 ```
 
-If error "requires API key authentication" (user-level key), query `workspaces` instead and ask user to pick one, then use a workspace-scoped key.
+If error "requires API key authentication" (user-level key), query `workspaces` instead and ask user to pick one.
 
-### 4. Create `.env` file
+### 4. Detect Bot Identity
 
-Write to `<project_root>/.env`:
-```
-export WSPACE_API_KEY="<key>"
-```
-
-Check `.gitignore` — if it exists, ensure `.env` is listed. If `.gitignore` doesn't exist, create one with `.env` entry.
+From the `appContext` response, find the bot's own member:
+- Look for member with email ending in `@bot.wspaces.app`
+- Store the bot's `id` and `full_name`
+- This allows multiple Claude Code instances to run with different API keys, each auto-detecting its own bot identity
 
 ### 5. Generate `CLAUDE.md`
 
-Create/update `CLAUDE.md` in project root with all fetched data:
+Create/update `CLAUDE.md` in project root with all fetched data.
+**Do NOT hardcode bot ID** — instead include instructions to query `appContext` at runtime.
 
 ```markdown
 # WSpace API Defaults
@@ -355,86 +353,89 @@ Create/update `CLAUDE.md` in project root with all fetched data:
 When running `/wspace-api` commands, use these defaults unless overridden:
 
 ## Connection
-- **Endpoint:** `<ENDPOINT>`
-- **API Key:** env `WSPACE_API_KEY`
+- **Endpoint:** `https://api.wspaces.app/graphql`
+- **API Key:** env `WSPACE_API_KEY` (set per terminal session, NOT from .env file)
+
+## Bot Identity (Dynamic)
+
+**Do NOT hardcode bot ID.** At startup or first API call, query `appContext` to resolve:
+{ appContext { workspace { id } members { id email full_name } } }
+The bot's own member is the one with email ending in `@bot.wspaces.app`. Cache the bot's `id` for the session.
+
+Multiple Claude Code instances can run in the same project folder, each with a different `WSPACE_API_KEY`. Each instance auto-detects its own bot identity.
 
 ## Workspace: <NAME>
 - **Workspace ID:** `<ID>`
 - **Workspace URL:** `<URL>`
 
 ## Teams
-| Identifier | Name | ID |
-|------------|------|----|
 (list all teams)
 
 ## Workflows
-| Name | ID | Type |
-|------|----|------|
 (list all workflows)
 
 ## Labels
-| Name | ID |
-|------|----|
 (list all labels)
 
 ## Project Statuses
-| Name | ID | Type |
-|------|----|------|
 (list all project statuses)
 
 ## Members
-| Name | ID | Email |
-|------|----|-------|
 (list all members)
 
 ## Comments API
-\`\`\`graphql
 # Create comment
 mutation(\$input: CreateCommentInput!) { createComment(createInput: \$input) }
 # Query comments
-{ comments(getInput: { issue_id: "<ISSUE_ID>", workspace_id: "<WS_ID>" }) { id content created_by user { full_name email } created_at } }
-\`\`\`
+{ comments(getInput: { issue_id: "<ID>", workspace_id: "<WS_ID>" }) { id content created_by user { full_name email } created_at } }
 
 ## Auto-implement Workflow
 
-**IMPORTANT: Chỉ xử lý issue được assign cho chính bot account.** Không tự nhận issue chưa assign. User phải chủ động assign issue cho bot trước.
+**IMPORTANT: Only process issues assigned to THIS bot's own member ID.** Query `appContext` first to discover own identity. Never self-assign unassigned issues.
+
+### Phase 0: Resolve bot identity
+1. Query `appContext` using current `WSPACE_API_KEY`
+2. Find own member by matching email pattern `*@bot.wspaces.app`
+3. Cache `bot_id` for the session
 
 ### Phase 1: Pick up new issues
-1. Fetch issues assigned to bot (assignee_id = bot ID) in **Backlog/Todo**
-2. Move to **In Progress**
-3. Analyze task -> comment kế hoạch triển khai lên issue
-4. Chờ approval comment từ member (không phải bot)
+1. Fetch issues assigned to `bot_id` in Backlog/Todo
+2. Move to In Progress
+3. Analyze task -> comment implementation plan on issue
 
 ### Phase 2: Respond to user comments on In Progress issues
-1. Fetch issues assigned to bot in **In Progress**
-2. Query comments cho mỗi issue
-3. Tìm comment MỚI NHẤT từ non-bot member (created_by != bot ID)
-4. **Đọc hiểu nội dung comment** để xác định intent, KHÔNG match keyword cứng:
-   - **Approve/implement**: user đồng ý, yêu cầu triển khai -> implement code -> comment kết quả -> chuyển **In Review**
-   - **Request more analysis**: user yêu cầu phân tích thêm -> phân tích -> comment kết quả (giữ In Progress)
-   - **Feedback/revise**: user góp ý, sửa plan -> cập nhật plan -> comment plan mới (giữ In Progress)
-   - **Reject/cancel**: user từ chối -> comment xác nhận -> move về **Backlog**
-   - **Question**: user hỏi thêm -> trả lời bằng comment (giữ In Progress)
-5. Nếu comment mới nhất là của bot -> bỏ qua (đang chờ user response)
-
-### Flow
-\`\`\`
-User assign -> Backlog/Todo -> [Bot picks up] -> In Progress (comment plan)
-  -> [User comments]
-    -> approve      -> Bot implements -> In Review (comment results)
-    -> analyze more -> Bot analyzes   -> In Progress (comment analysis)
-    -> feedback     -> Bot revises    -> In Progress (comment new plan)
-    -> reject       -> Bot confirms   -> Backlog
-    -> question     -> Bot answers    -> In Progress (comment answer)
-  -> [User reviews In Review & completes manually]
-\`\`\`
+1. Fetch issues assigned to `bot_id` in In Progress
+2. Query comments, find latest non-bot comment (created_by != bot_id)
+3. Read and understand comment intent (do NOT use keyword matching):
+   - Approve -> implement code -> comment results -> In Review
+   - More analysis -> analyze -> comment findings (stay In Progress)
+   - Feedback -> revise plan -> comment new plan (stay In Progress)
+   - Reject -> confirm -> Backlog
+   - Question -> answer via comment (stay In Progress)
+4. Skip if latest comment is from bot (waiting for user)
 
 ## Schema Notes
 - `UserEntity` uses `full_name` and `username` (not `first_name`/`last_name`)
 - `IssueLabelEntity` uses `id` and `label_id` (not `name`/`color`)
 ```
 
-### 6. Ask about Auto-loop
+### 6. Show startup instructions
+
+Tell the user how to launch Claude Code with their API key:
+```
+export WSPACE_API_KEY="<key>" && claude
+```
+
+For multiple bots on the same project, open separate terminals:
+```
+# Terminal 1
+export WSPACE_API_KEY="sk_live_app1_key" && claude
+
+# Terminal 2
+export WSPACE_API_KEY="sk_live_app2_key" && claude
+```
+
+### 7. Ask about Auto-loop
 
 Ask user via AskUserQuestion:
 - "Do you want to enable auto-implement loop?" with options:
@@ -445,32 +446,36 @@ Ask user via AskUserQuestion:
 
 If yes, create a CronCreate with the selected interval using this prompt:
 
-\`\`\`
-Source <project_root>/.env for API key. Run two phases:
+```
+Run two phases using env WSPACE_API_KEY:
 
-Phase 1 - New issues: Query issues assigned to bot in Backlog/Todo.
+Phase 0 - Resolve identity: Query appContext to find bot's own member ID (email ending in @bot.wspaces.app).
+
+Phase 1 - New issues: Query issues assigned to bot_id in Backlog/Todo.
 For each: move to In Progress, analyze task, comment plan on issue.
 
-Phase 2 - Respond to comments: Query issues assigned to bot in In Progress.
-For each: query comments, find latest non-bot comment.
+Phase 2 - Respond to comments: Query issues assigned to bot_id in In Progress.
+For each: query comments, find latest non-bot comment (created_by != bot_id).
 Read and understand the comment intent (do NOT use keyword matching):
-- Approve/implement -> implement code, comment results, move to In Review
-- Request more analysis -> analyze further, comment findings (stay In Progress)
-- Feedback/revise -> update plan, comment new plan (stay In Progress)
-- Reject -> confirm cancellation, move to Backlog
+- Approve -> implement code, comment results, move to In Review
+- More analysis -> analyze further, comment findings (stay In Progress)
+- Feedback -> update plan, comment new plan (stay In Progress)
+- Reject -> confirm, move to Backlog
 - Question -> answer via comment (stay In Progress)
 Skip if latest comment is from bot (waiting for user).
 
 If nothing to process: "No new issues to process."
-\`\`\`
+```
 
-### 7. Display Summary
+### 8. Display Summary
 
 Show the user:
 - Workspace name and URL
+- Bot identity: name and email (detected from API key)
 - Number of teams, workflows, labels, members
 - Scopes checklist (enabled/disabled)
-- Files created: `.env`, `CLAUDE.md`, `.gitignore` (if modified)
+- Files created: `CLAUDE.md`, `.gitignore` (if modified)
+- How to launch: `export WSPACE_API_KEY="<key>" && claude`
 - Auto-loop status (on/off, interval, job ID)
 - Quick reference commands
 

@@ -23,11 +23,11 @@ This installs two slash commands into Claude Code:
 
 ### 1. Project setup
 
-Open Claude Code in your project:
+Open Claude Code in your project with the API key:
 
 ```bash
 cd my-project
-claude
+export WSPACE_API_KEY="sk_live_your_key_here" && claude
 ```
 
 Run setup:
@@ -37,14 +37,29 @@ Run setup:
 ```
 
 The setup wizard will:
-- Prompt for your API key (or use an existing one)
+- Use the `WSPACE_API_KEY` from env (or prompt for one)
 - Connect and fetch workspace context (teams, workflows, labels, members)
-- Create `.env` file with the API key
+- Auto-detect bot identity (email ending in `@bot.wspaces.app`)
 - Generate `CLAUDE.md` with project-specific defaults
-- Update `.gitignore` to exclude `.env`
 - Optionally enable auto-loop (5m / 10m / 30m)
 
-### 2. WSpace API commands
+> **No `.env` file is created.** The API key is set per terminal session to support multiple bot instances.
+
+### 2. Multiple bot instances
+
+Run multiple Claude Code instances on the same project, each with a different bot:
+
+```bash
+# Terminal 1
+export WSPACE_API_KEY="sk_live_bot1_key" && claude
+
+# Terminal 2
+export WSPACE_API_KEY="sk_live_bot2_key" && claude
+```
+
+Each instance auto-detects its own bot identity via `appContext` query. No conflicts — each bot only processes issues assigned to itself.
+
+### 3. WSpace API commands
 
 ```
 /wspace-api context                          # View workspace info + scopes
@@ -59,7 +74,7 @@ The setup wizard will:
 
 Once set up, you don't need to pass `--workspace` or `--team` — defaults are loaded from `CLAUDE.md`.
 
-### 3. Auto-implement workflow
+### 4. Auto-implement workflow
 
 Enable auto-loop so the bot automatically processes assigned issues:
 
@@ -86,7 +101,7 @@ User assigns issue to Bot
 
 #### How it works
 
-1. **User creates an issue** on WSpace and **assigns it to the bot** (Claude Leader)
+1. **User creates an issue** on WSpace and **assigns it to the bot**
 2. **Bot picks it up** — moves to In Progress, analyzes the task, comments the implementation plan
 3. **User reviews the plan** — responds via comment on the issue:
    - "ok, go ahead" -> bot implements the code
@@ -96,6 +111,7 @@ User assigns issue to Bot
 5. **User reviews** and completes manually
 
 > The bot only processes issues explicitly assigned to it. It never self-assigns issues.
+> Comment intent is understood via NLU — no keyword matching.
 
 ## File structure
 
@@ -103,9 +119,7 @@ After setup, your project will contain:
 
 ```
 my-project/
-  .env              # WSPACE_API_KEY
-  .gitignore        # .env is excluded
-  CLAUDE.md         # WSpace config defaults
+  CLAUDE.md         # WSpace config defaults (auto-generated)
 ```
 
 Global Claude Code commands:
@@ -125,7 +139,7 @@ git clone git@github.com:trandactruong/wspaces-claude.git
 bash wspaces-claude/wspace-install.sh
 
 # Then in your project
-claude
+export WSPACE_API_KEY="sk_live_your_key" && claude
 /wspace-setup
 ```
 
