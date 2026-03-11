@@ -1,6 +1,6 @@
 {
   "name": "wspaces-claude",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "WSpace integration for Claude Code — automate issue management, projects, and documents via GraphQL API",
   "bin": {
     "wspace-install": "bin/install.js"
