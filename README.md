@@ -8,11 +8,17 @@ Integrate [WSpace](https://wspaces.app) with [Claude Code](https://docs.anthropi
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
 - WSpace API Key (from WSpace Settings > Apps)
 
-### One-command install
+### Install via npm
 
 ```bash
-git clone git@github.com:trandactruong/wspaces-claude.git
-bash wspaces-claude/wspace-install.sh
+npx wspaces-claude
+```
+
+Or install globally:
+
+```bash
+npm install -g wspaces-claude
+wspace-install
 ```
 
 This installs two slash commands into Claude Code:
@@ -39,7 +45,7 @@ Run setup:
 The setup wizard will:
 - Use the `WSPACE_API_KEY` from env (or prompt for one)
 - Connect and fetch workspace context (teams, workflows, labels, members)
-- Auto-detect bot identity (email ending in `@bot.wspaces.app`)
+- Auto-detect bot identity via `me` query
 - Generate `CLAUDE.md` with project-specific defaults
 - Optionally enable auto-loop (5m / 10m / 30m)
 
@@ -57,7 +63,7 @@ export WSPACE_API_KEY="sk_live_bot1_key" && claude
 export WSPACE_API_KEY="sk_live_bot2_key" && claude
 ```
 
-Each instance auto-detects its own bot identity via `appContext` query. No conflicts — each bot only processes issues assigned to itself.
+Each instance auto-detects its own bot identity via `me` query. No conflicts — each bot only processes issues assigned to itself.
 
 ### 3. WSpace API commands
 
@@ -133,10 +139,8 @@ Global Claude Code commands:
 ## Setting up on another machine
 
 ```bash
-# On the new machine
 npm install -g @anthropic-ai/claude-code
-git clone git@github.com:trandactruong/wspaces-claude.git
-bash wspaces-claude/wspace-install.sh
+npx wspaces-claude
 
 # Then in your project
 export WSPACE_API_KEY="sk_live_your_key" && claude

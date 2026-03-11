@@ -1,0 +1,25 @@
+{
+  "name": "wspaces-claude",
+  "version": "1.0.0",
+  "description": "WSpace integration for Claude Code — automate issue management, projects, and documents via GraphQL API",
+  "bin": {
+    "wspace-install": "bin/install.js"
+  },
+  "files": [
+    "bin/",
+    "commands/"
+  ],
+  "keywords": [
+    "wspaces",
+    "claude",
+    "claude-code",
+    "graphql",
+    "project-management"
+  ],
+  "author": "trandactruong",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trandactruong/wspaces-claude.git"
+  }
+}
